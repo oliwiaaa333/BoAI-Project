@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import pickle
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderUnavailable, GeocoderTimedOut
 
 # załadowanie modelu
 with open("xgb_model.pkl", "rb") as f:
@@ -37,8 +38,25 @@ category = st.selectbox("Branża", [
 
 remote_flag = st.checkbox("Czy praca może być zdalna?", value=True)
 
-latitude = st.number_input("Szerokość geograficzna (latitude)", value=39.0)
-longitude = st.number_input("Długość geograficzna (longitude)", value=-98.0)
+location_input = st.text_input("Podaj lokalizację (np. Los Angeles, CA)")
+geolocator = Nominatim(user_agent="job_salary_app")
+
+latitude = 39.0
+longitude = -98.0
+
+if location_input:
+    try:
+        location = geolocator.geocode(location_input, country_codes="us")
+        if location:
+            latitude = location.latitude
+            longitude = location.longitude
+            st.success(f"Znaleziono lokalizację: {location.address}")
+        else:
+            st.warning("Nie znaleziono lokalizacji. Użyto domyślnych współrzędnych.")
+    except (GeocoderUnavailable, GeocoderTimedOut):
+        st.warning("Błąd łączeniz z usługą geokodowania. Użyto domyślnych współrzędnych")
+
+
 
 input_dict = {
     'remote_flag': int(remote_flag),
@@ -78,7 +96,7 @@ max_salary = 234500.0
 
 # wyswietlenie wyniku
 st.subheader("Wynik modelu:")
-st.write(f"Znormalizowana przewidywana pensja: **{prediction_scaled:.4f}**")
+# st.write(f"Znormalizowana przewidywana pensja: **{prediction_scaled:.4f}**")
 
 salary_usd = prediction_scaled * (max_salary - min_salary) + min_salary
-st.success(f"Przewidywane wynagrodzenie: ${salary_usd:,.2f}")
+st.success(f"Przewidywane wynagrodzenie roczne: ${salary_usd:,.2f}")
